@@ -5,6 +5,8 @@ import (
 	"fmt"
 	"net/http"
 	"strings"
+
+	"github.com/go-chi/chi/v5"
 )
 
 const jsonContentType = "application/json"
@@ -15,6 +17,16 @@ type PlayerStore interface {
 	GetLeague() League
 }
 
+type CatStore interface {
+	GetAll() []Cat
+	GetByID(id int) *Cat
+}
+
+type Server struct {
+	Cats CatStore
+	http.Handler
+}
+
 type PlayerServer struct {
 	store PlayerStore
 	http.Handler
@@ -23,6 +35,24 @@ type PlayerServer struct {
 type Player struct {
 	Name string
 	Wins int
+}
+
+func NewServer(catStore CatStore) *Server {
+	server := new(Server)
+
+	server.Cats = catStore
+
+	router := chi.NewRouter()
+	router.Get("/cats", server.catsHandler)
+
+	server.Handler = router
+
+	return server
+}
+
+func (s *Server) catsHandler(w http.ResponseWriter, r *http.Request) {
+	w.Header().Set("content-type", jsonContentType)
+	json.NewEncoder(w).Encode(s.Cats.GetAll())
 }
 
 func NewPlayerServer(store PlayerStore) *PlayerServer {

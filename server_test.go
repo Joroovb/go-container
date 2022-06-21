@@ -29,6 +29,97 @@ func (s *StubPlayerStore) GetLeague() League {
 	return s.league
 }
 
+type StubCatStore struct {
+	cats []Cat
+}
+
+func (s *StubCatStore) GetAll() []Cat {
+	return s.cats
+}
+
+func (s *StubCatStore) GetByID(id int) *Cat {
+	for _, cat := range s.GetAll() {
+		if cat.ID == id {
+			return &cat
+		}
+	}
+	return nil
+}
+
+func TestCatsEndpoint(t *testing.T) {
+	store := StubCatStore{
+		[]Cat{
+			{
+				1,
+				"Melinoe",
+			},
+			{
+				2,
+				"Salem",
+			},
+		},
+	}
+
+	server := NewServer(&store)
+
+	t.Run("it returns statuscode 200 on /cats", func(t *testing.T) {
+		request, _ := http.NewRequest(http.MethodGet, "/cats", nil)
+		response := httptest.NewRecorder()
+
+		server.ServeHTTP(response, request)
+
+		assertStatusCode(t, response.Code, http.StatusOK)
+	})
+
+	t.Run("it returns all cats as JSON", func(t *testing.T) {
+		wantedCats := []Cat{
+			{
+				1,
+				"Melinoe",
+			},
+			{
+				2,
+				"Salem",
+			},
+		}
+
+		request, _ := http.NewRequest(http.MethodGet, "/cats", nil)
+		response := httptest.NewRecorder()
+
+		server.ServeHTTP(response, request)
+
+		var got []Cat
+
+		err := json.NewDecoder(response.Body).Decode(&got)
+
+		if err != nil {
+			t.Errorf("error parsing response into slice of cats, %v", err)
+		}
+
+		assertStatusCode(t, response.Code, http.StatusOK)
+		assertContentType(t, response, jsonContentType)
+		assertCats(t, got, wantedCats)
+	})
+
+	t.Run("return melinoe", func(t *testing.T) {
+		want := Cat{
+			1,
+			"Melinoe",
+		}
+
+		request, _ := http.NewRequest(http.MethodGet, "/cats/1", nil)
+		response := httptest.NewRecorder()
+
+		server.ServeHTTP(response, request)
+
+		var got Cat
+
+		json.NewDecoder(response.Body).Decode(&got)
+
+		assertCat(t, got, want)
+	})
+}
+
 func TestGETPlayers(t *testing.T) {
 	store := StubPlayerStore{
 		map[string]int{
@@ -175,6 +266,18 @@ func assertContentType(t testing.TB, response *httptest.ResponseRecorder, want s
 }
 
 func assertLeague(t testing.TB, got, want []Player) {
+	if !reflect.DeepEqual(got, want) {
+		t.Errorf("got %v want %v", got, want)
+	}
+}
+
+func assertCats(t testing.TB, got, want []Cat) {
+	if !reflect.DeepEqual(got, want) {
+		t.Errorf("got %v want %v", got, want)
+	}
+}
+
+func assertCat(t testing.TB, got, want Cat) {
 	if !reflect.DeepEqual(got, want) {
 		t.Errorf("got %v want %v", got, want)
 	}
